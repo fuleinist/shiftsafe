@@ -66,11 +66,11 @@ def _build_block(day_hours, start, shift_hours):
     return [by_hour[start + offset] for offset in range(shift_hours)]
 
 
-def _recommendation(start_hour, finish_hour, peak, limit, total_rest, water_worker, over_hours):
+def _recommendation(start_hour, finish_hour, peak, limit, total_rest, water_worker, hours_above):
     text = f"Start at {start_hour:02d}:00 and finish at {finish_hour:02d}:00."
     text += f" Peak WBGT is {peak['wbgt']:.1f} C at {peak['time'][11:16]}."
-    if over_hours:
-        text += f" {over_hours} hour(s) sit above the {limit:.1f} C continuous limit."
+    if hours_above:
+        text += f" {hours_above} hour(s) sit above the {limit:.1f} C continuous limit."
     else:
         text += f" Every hour sits at or below the {limit:.1f} C continuous limit."
     if total_rest:
@@ -148,6 +148,7 @@ def build_plan(
 
     peak = max(rows, key=lambda item: item["wbgt"])
     hottest_allowed = max(row["wbgt"] for row in day_hours)
+    hours_above = sum(1 for row in rows if row["wbgt"] > limit)
 
     warnings = []
     if over_hours:
@@ -204,8 +205,7 @@ def build_plan(
             "peak_wbgt": peak["wbgt"],
             "peak_time": peak["time"][11:16],
             "peak_temp_c": peak["temp_c"],
-            "hours_above_limit": sum(1 for row in rows if row["wbgt"] > limit),
-            "hottest_available_wbgt": hottest_allowed,
+            "hours_above_limit": sum(1 for row in rows if row["wbgt"] > limit),            "hottest_available_wbgt": hottest_allowed,
         },
         "warnings": warnings,
         "measured": measured,
@@ -216,7 +216,7 @@ def build_plan(
             limit,
             total_rest,
             total_water,
-            over_hours,
+            hours_above,
         ),
         "alternatives": alternatives,
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),

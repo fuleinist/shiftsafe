@@ -54,7 +54,7 @@ function currentParams() {
   const measured = $("measured_wbgt").value.trim();
   return {
     place: $("place").value,
-    date: $("date").value,
+    date: $("date").value || state.pendingDate || "",
     intensity: $("intensity").value,
     crew: $("crew").value,
     shift_hours: $("shift_hours").value,
@@ -381,6 +381,11 @@ function applyUrlParams() {
     let value = params.get(key);
     if (key === "earliest_start" || key === "latest_start") {
       value = `${String(Number(value)).padStart(2, "0")}:00`;
+    }
+    if (key === "date" && (!node.options || node.options.length === 0)) {
+      // The date list arrives with the first plan. Keep the request for that call.
+      state.pendingDate = value;
+      return;
     }
     node.value = value;
   });

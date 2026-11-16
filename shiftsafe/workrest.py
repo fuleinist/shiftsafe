@@ -60,7 +60,7 @@ def reason(
     else:
         head = f"Work {work_min} min, then rest {60 - work_min} min."
 
-    detail = f"Trade-off is {exposure_text}."
+    detail = f"Exposure is {exposure_text}."
     if shortwave_wm2 < 50:
         detail += " Low sun, so shade adds little."
     return f"{head} {detail}"
