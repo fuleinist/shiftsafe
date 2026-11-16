@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>shiftsafe — heat-safe shift planner</title>
+    <meta
+      name="description"
+      content="Estimate WBGT from open weather data. Get a start time, work-rest cycles and a water target for your crew."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">SS</span>
+        <div>
+          <h1>shiftsafe</h1>
+          <p>Heat-safe shift planner</p>
+        </div>
+      </div>
+      <div class="badge" id="data-badge" role="status">Loading</div>
+    </header>
+
+    <div class="layout">
+      <form class="panel" id="plan-form" autocomplete="off">
+        <h2>Site and crew</h2>
+
+        <label for="place">
+          <span>Place</span>
+          <select id="place" name="place"></select>
+        </label>
+
+        <label for="date">
+          <span>Date</span>
+          <select id="date" name="date"></select>
+        </label>
+
+        <div class="row">
+          <label for="intensity">
+            <span>Task intensity</span>
+            <select id="intensity" name="intensity"></select>
+          </label>
+          <label for="crew">
+            <span>Crew size</span>
+            <input id="crew" name="crew" type="number" min="1" max="200" value="4" />
+          </label>
+        </div>
+
+        <div class="row">
+          <label for="shift_hours">
+            <span>Shift length (h)</span>
+            <input id="shift_hours" name="shift_hours" type="number" min="2" max="12" value="8" />
+          </label>
+          <label for="exposure">
+            <span>Work exposure</span>
+            <select id="exposure" name="exposure">
+              <option value="sun">Full sun</option>
+              <option value="shade">Shade</option>
+              <option value="mixed">Mixed</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label for="earliest_start">
+            <span>Earliest start</span>
+            <select id="earliest_start" name="earliest_start"></select>
+          </label>
+          <label for="latest_start">
+            <span>Latest start</span>
+            <select id="latest_start" name="latest_start"></select>
+          </label>
+        </div>
+
+        <label class="check" for="acclimatised">
+          <input id="acclimatised" name="acclimatised" type="checkbox" checked />
+          <span>Crew is acclimatised to heat</span>
+        </label>
+
+        <label for="measured_wbgt">
+          <span>Measured WBGT (°C, optional)</span>
+          <input
+            id="measured_wbgt"
+            name="measured_wbgt"
+            type="number"
+            step="0.1"
+            min="-10"
+            max="60"
+            placeholder="Meter reading"
+          />
+        </label>
+
+        <button type="submit" id="submit">Build the shift plan</button>
+        <p class="hint">
+          WBGT is estimated from a public weather forecast. It is not a measurement.
+          This tool never replaces a site procedure or an official warning.
+        </p>
+      </form>
+
+      <main class="results" id="results">
+        <section class="empty" id="empty">
+          <h2>No plan yet</h2>
+          <p>Pick a place and a date, then build the plan. The planner scores every legal start hour.</p>
+        </section>
+
+        <div id="output" hidden>
+          <section class="banner" id="banner"></section>
+
+          <section class="cards">
+            <article class="card">
+              <p class="card-label">Start and finish</p>
+              <p class="card-value" id="card-window">—</p>
+              <p class="card-note" id="card-window-note"></p>
+            </article>
+            <article class="card">
+              <p class="card-label">Peak WBGT</p>
+              <p class="card-value" id="card-peak">—</p>
+              <p class="card-note" id="card-peak-note"></p>
+            </article>
+            <article class="card">
+              <p class="card-label">Work and rest</p>
+              <p class="card-value" id="card-work">—</p>
+              <p class="card-note" id="card-work-note"></p>
+            </article>
+            <article class="card">
+              <p class="card-label">Water per worker</p>
+              <p class="card-value" id="card-water">—</p>
+              <p class="card-note" id="card-water-note"></p>
+            </article>
+          </section>
+
+          <section class="panel chart-panel">
+            <div class="panel-head">
+              <h2>WBGT through the shift</h2>
+              <span class="legend">
+                <span class="dot line"></span> WBGT
+                <span class="dot limit"></span> Limit <span id="legend-limit"></span>
+              </span>
+            </div>
+            <canvas id="chart" width="900" height="320" role="img"
+              aria-label="Line chart of estimated WBGT for each hour of the shift"></canvas>
+            <div class="strip" id="strip"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Hour by hour</h2>
+            <div class="table-wrap">
+              <table id="table">
+                <thead>
+                  <tr>
+                    <th>Hour</th>
+                    <th>Temp</th>
+                    <th>RH</th>
+                    <th>Sun</th>
+                    <th>WBGT</th>
+                    <th>Work</th>
+                    <th>Rest</th>
+                    <th>Water</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel" id="measured-panel" hidden>
+            <h2>Measured reading</h2>
+            <p id="measured-text"></p>
+          </section>
+
+          <section class="panel crew-card" id="crew-card">
+            <div class="crew-head">
+              <div>
+                <p class="card-label">Crew card</p>
+                <h2 id="crew-title">Shift plan</h2>
+              </div>
+              <div class="crew-meta" id="crew-meta"></div>
+            </div>
+            <div class="crew-grid" id="crew-summary"></div>
+            <div class="crew-strip" id="crew-hours"></div>
+            <ul class="crew-notes" id="crew-notes"></ul>
+            <p class="small">
+              Estimate only. Check the site, the meter and the official forecast before you start.
+            </p>
+          </section>
+
+          <div class="actions">
+            <button type="button" class="ghost" id="print">Print crew card</button>
+            <a class="ghost" id="csv" href="#" download>Download CSV</a>
+          </div>
+
+          <p class="source" id="source"></p>
+        </div>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
